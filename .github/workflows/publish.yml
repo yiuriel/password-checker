@@ -43,11 +43,28 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email github-actions[bot]@users.noreply.github.com
-      - name: Get current version
-        id: current_version
+      - name: Check latest published version
+        id: check_version
         run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
           CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+          # Get the latest published version
+          PUBLISHED_VERSION=$(npm view $PACKAGE_NAME version 2>/dev/null || echo "0.0.0")
+          echo "Latest published version: $PUBLISHED_VERSION"
+
+          # Compare versions
+          if [ "$(printf '%s\n' "$PUBLISHED_VERSION" "$CURRENT_VERSION" | sort -V | tail -n1)" != "$CURRENT_VERSION" ]; then
+            echo "Current version is not greater than published version"
+            PUBLISHED_VERSION_PARTS=(${PUBLISHED_VERSION//./ })
+            NEW_VERSION="${PUBLISHED_VERSION_PARTS[0]}.${PUBLISHED_VERSION_PARTS[1]}.$((${PUBLISHED_VERSION_PARTS[2]} + 1))"
+            npm version $NEW_VERSION --no-git-tag-version --allow-same-version
+            echo "Set version to $NEW_VERSION"
+          fi
+
+          FINAL_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$FINAL_VERSION" >> $GITHUB_OUTPUT
       - name: Bump version on push
         if: github.event_name == 'push'
         id: bump_version
@@ -69,7 +86,11 @@ jobs:
         run: |
           # Extract version from release tag (v1.2.3 -> 1.2.3)
           VERSION=${GITHUB_REF#refs/tags/v}
-          npm version $VERSION --no-git-tag-version
+          if [ "$(printf '%s\n' "${{ steps.check_version.outputs.version }}" "$VERSION" | sort -V | tail -n1)" != "$VERSION" ]; then
+            echo "Release version must be greater than current version"
+            exit 1
+          fi
+          npm version $VERSION --no-git-tag-version --allow-same-version
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - run: npm run build
       - name: Publish to npm
@@ -79,12 +100,7 @@ jobs:
           else
             NEW_VERSION=${{ steps.release_version.outputs.version }}
           fi
-          if [ "$NEW_VERSION" != "${{ steps.current_version.outputs.version }}" ]; then
-            npm publish
-          else
-            echo "Version unchanged, skipping publish"
-            exit 1
-          fi
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
       - name: Commit and push version bump
