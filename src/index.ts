@@ -30,38 +30,35 @@ export function verifyPassword(
 
   // 1. Check minimum length
   if (rules.minLength && password.length < rules.minLength) {
-    errors.tooShort = true;
+    return { valid: false, errors: { ...errors, tooShort: true } };
   }
 
-  // 2. Check blacklist
+  // 2. Check blacklist (assuming it's pre-sorted for efficiency)
   if (rules.blacklist && rules.blacklist.length > 0) {
-    if (rules.blacklist.length < 500) {
-      if (rules.blacklist.includes(password)) {
-        errors.commonPassword = true;
-      }
-    } else {
-      const sortedBlacklist = [...rules.blacklist].sort();
-      if (binarySearch(sortedBlacklist, password)) {
-        errors.commonPassword = true;
-      }
+    if (
+      (rules.blacklist.length < 500 && rules.blacklist.includes(password)) ||
+      (rules.blacklist.length >= 500 && binarySearch(rules.blacklist, password))
+    ) {
+      return { valid: false, errors: { ...errors, commonPassword: true } };
     }
   }
 
   // 3. Single pass through password
   for (const char of password) {
-    if (char.toLowerCase() !== char.toUpperCase()) {
-      // It's a letter
-      if (char === char.toLowerCase()) flags |= REQUIRE_LOWER;
-      if (char === char.toUpperCase()) flags |= REQUIRE_UPPER;
-    } else if (!Number.isNaN(Number(char))) {
-      // It's a digit
+    const lowerChar = char.toLowerCase();
+    const upperChar = char.toUpperCase();
+    if (lowerChar !== upperChar) {
+      if (char === lowerChar) flags |= REQUIRE_LOWER;
+      if (char === upperChar) flags |= REQUIRE_UPPER;
+    } else if (!isNaN(Number(char))) {
       flags |= REQUIRE_DIGIT;
     } else {
-      // It's a special character
       flags |= REQUIRE_SPECIAL;
     }
 
-    if ((flags & requiredFlags) === requiredFlags) break;
+    if ((flags & requiredFlags) === requiredFlags) {
+      break; // Early exit if all required flags are met
+    }
   }
 
   // 4. Check which rules failed
