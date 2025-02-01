@@ -1,5 +1,5 @@
 {
-  "name": "password-checker",
+  "name": "@yiuriel/password-checker",
   "version": "1.0.0",
   "description": "A password checker package",
   "main": "dist/index.js",

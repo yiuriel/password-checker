@@ -5,12 +5,14 @@ A TypeScript package for password checking functionality.
 ## Installation
 
 ```bash
-npm install password-checker
+npm install @yiuriel/password-checker
 ```
 
 ## Usage
 
 ```typescript
+import { verifyPassword } from '@yiuriel/password-checker';
+
 const password = "SecurePass123!";
 const rules: PasswordRules = {
   minLength: 10,
