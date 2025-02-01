@@ -15,7 +15,6 @@ export function verifyPassword(
     missingSpecialChar: false,
   };
 
-  const specialChars = '!@#$%^&*(),.?":{}|<>';
   let flags = 0;
 
   const REQUIRE_LOWER = 1 << 0;
@@ -49,12 +48,18 @@ export function verifyPassword(
   }
 
   // 3. Single pass through password
-  for (let i = 0; i < password.length; i++) {
-    const char = password[i];
-    if (char >= "a" && char <= "z") flags |= REQUIRE_LOWER;
-    else if (char >= "A" && char <= "Z") flags |= REQUIRE_UPPER;
-    else if (char >= "0" && char <= "9") flags |= REQUIRE_DIGIT;
-    else if (specialChars.includes(char)) flags |= REQUIRE_SPECIAL;
+  for (const char of password) {
+    if (char.toLowerCase() !== char.toUpperCase()) {
+      // It's a letter
+      if (char === char.toLowerCase()) flags |= REQUIRE_LOWER;
+      if (char === char.toUpperCase()) flags |= REQUIRE_UPPER;
+    } else if (!Number.isNaN(Number(char))) {
+      // It's a digit
+      flags |= REQUIRE_DIGIT;
+    } else {
+      // It's a special character
+      flags |= REQUIRE_SPECIAL;
+    }
 
     if ((flags & requiredFlags) === requiredFlags) break;
   }
